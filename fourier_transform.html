@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fourier Transform - A Visual Introduction</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.1/math.min.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/mathjs@12.4.1/lib/browser/math.js'"></script>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --text: #e0e0e0;
+    --accent: #4cc9f0;
+    --accent2: #f72585;
+    --border: #2a2a4a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.7; max-width: 1100px; margin: 0 auto; padding: 20px;
+  }
+  h1 { font-size: 1.8rem; text-align: center; margin: 20px 0 10px; color: var(--accent); }
+  h2 { font-size: 1.3rem; color: var(--accent2); margin: 30px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  p, li { margin: 6px 0; }
+  .video-wrap { text-align: center; margin: 20px 0; }
+  iframe { max-width: 100%; border-radius: 8px; }
+
+  /* ---- Input Panel ---- */
+  .input-panel {
+    background: var(--surface); border-radius: 10px; padding: 20px;
+    margin: 20px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  }
+  .input-panel label { font-size: 0.85rem; display: block; margin-bottom: 4px; color: #aaa; }
+  .input-panel input {
+    padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 0.95rem;
+  }
+  .input-panel input[type="text"] { width: 220px; font-family: 'Consolas', monospace; }
+  .input-panel input[type="number"] { width: 80px; }
+  .btn {
+    padding: 8px 24px; border-radius: 6px; border: none; cursor: pointer;
+    font-size: 1rem; font-weight: 600; transition: 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #80dfff; }
+  .btn-danger { background: var(--accent2); color: #fff; }
+  .btn-danger:hover { background: #ff5ca8; }
+  .note { font-size: 0.8rem; color: #888; margin-top: 4px; }
+
+  /* ---- Canvas containers ---- */
+  .canvas-box { background: var(--surface); border-radius: 10px; padding: 15px; margin: 15px 0; overflow-x: auto; }
+  canvas { display: block; max-width: 100%; }
+
+  /* ---- Animation controls ---- */
+  .anim-controls {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    padding: 10px 0;
+  }
+  .anim-controls label { font-size: 0.85rem; color: #aaa; }
+  .anim-controls input[type="range"] { flex: 1; min-width: 150px; accent-color: var(--accent); }
+  .anim-controls button {
+    padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); cursor: pointer; font-size: 0.9rem;
+  }
+  .anim-controls button:hover { background: var(--accent); color: #000; }
+  .anim-controls .play-btn { font-size: 1.2rem; padding: 4px 14px; }
+
+  .com-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .com-row canvas { flex: 1; min-width: 300px; }
+
+  .loading { text-align: center; padding: 40px; color: #888; display: none; }
+</style>
+</head>
+<body>
+
+<h1>Fourier Transform — A Visual Introduction</h1>
+<p style="text-align:center;color:#888;">
+  Based on the amazing video by <b>3Blue1Brown</b>.
+  Enter any function, and watch the Fourier winding machine in action!
+</p>
+
+<div class="video-wrap">
+  <iframe width="800" height="440" src="https://www.youtube.com/embed/spUNpyF58BY"
+    frameborder="0" allowfullscreen></iframe>
+</div>
+
+<!-- ========== INPUT PANEL ========== -->
+<h2>⚙️ Input Your Function</h2>
+<div class="input-panel">
+  <div>
+    <label for="funcInput">Function f(t) =</label>
+    <input type="text" id="funcInput" value="exp(-2*t)" placeholder="e.g. exp(-2*t)">
+    <div class="note">Variable: <b>t</b>. Available: exp, sin, cos, abs, sqrt, log, pi</div>
+  </div>
+  <div>
+    <label for="tMin">t min</label>
+    <input type="number" id="tMin" value="0" step="0.1">
+  </div>
+  <div>
+    <label for="tMax">t max</label>
+    <input type="number" id="tMax" value="2" step="0.1">
+  </div>
+  <div>
+    <label for="freqMin">Freq min (Hz)</label>
+    <input type="number" id="freqMin" value="0" step="0.1">
+  </div>
+  <div>
+    <label for="freqMax">Freq max (Hz)</label>
+    <input type="number" id="freqMax" value="10" step="0.1">
+  </div>
+  <button class="btn btn-primary" id="btnGenerate" onclick="generate()" disabled>Loading math.js...</button>
+</div>
+<div class="loading" id="loading">Computing... please wait...</div>
+
+<!-- ========== SECTION 1: Signal ========== -->
+<h2>1. Generating the Signal</h2>
+<p>Your input function f(t) plotted over the time range.</p>
+<div class="canvas-box">
+  <canvas id="canvasSignal" width="1000" height="350"></canvas>
+</div>
+
+<!-- ========== SECTION 2: Winding Subplots ========== -->
+<h2>2. Warping the Signal Around</h2>
+<p>For each sampling frequency, the signal is "wound" around a circle.
+The <span style="color:#ff4444;">red dot</span> marks the center of mass.</p>
+<div class="canvas-box">
+  <canvas id="canvasGrid" width="900" height="900"></canvas>
+</div>
+
+<!-- ========== SECTION 3: Interactive Animation ========== -->
+<h2>3. Dynamic Animation: Watch the Curve Wind</h2>
+<p>Select a frequency and play the animation to see the curve drawn frame-by-frame. Red dot = real-time center of mass.</p>
+<div class="canvas-box">
+  <div class="anim-controls">
+    <label>Freq #</label>
+    <input type="range" id="animFreq" min="0" max="99" value="0" step="1">
+    <label id="animFreqLabel">0.0 Hz</label>
+    <button class="play-btn" id="animPlayBtn" onclick="togglePlay()">▶</button>
+    <label>Frame</label>
+    <input type="range" id="animFrame" min="0" max="1999" value="0" step="1">
+    <label id="animFrameLabel">0/1999</label>
+  </div>
+  <canvas id="canvasAnim" width="650" height="650"></canvas>
+</div>
+
+<!-- ========== SECTION 4: COM Plots ========== -->
+<h2>4. Center of Mass vs Sampling Frequency</h2>
+<p>The x-coordinate of the center of mass for each frequency shows where energy is concentrated.</p>
+<div class="canvas-box">
+  <div class="com-row">
+    <canvas id="canvasCOMRaw" width="500" height="300"></canvas>
+    <canvas id="canvasCOMSmooth" width="500" height="300"></canvas>
+    <canvas id="canvasCOMBar" width="500" height="300"></canvas>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  GLOBAL STATE
+// ============================================================
+const NUM_POINTS = 2000;
+let t = [];
+let signal = [];
+let sfList = [];
+let xCord = [];   // [freqIdx][timeIdx]
+let yCord = [];   // [freqIdx][timeIdx]
+let meanList = []; // [freqIdx]
+
+let animPlaying = false;
+let animTimer = null;
+
+// Canvas contexts
+const ctxSignal  = document.getElementById('canvasSignal').getContext('2d');
+const ctxGrid    = document.getElementById('canvasGrid').getContext('2d');
+const ctxAnim    = document.getElementById('canvasAnim').getContext('2d');
+const ctxRaw     = document.getElementById('canvasCOMRaw').getContext('2d');
+const ctxSmooth  = document.getElementById('canvasCOMSmooth').getContext('2d');
+const ctxBar     = document.getElementById('canvasCOMBar').getContext('2d');
+
+// ============================================================
+//  COMPUTATION
+// ============================================================
+function generate() {
+  const loadingEl = document.getElementById('loading');
+  loadingEl.style.display = 'block';
+
+  // Use setTimeout so the loading indicator renders before heavy computation
+  setTimeout(() => {
+    try {
+      const funcStr = document.getElementById('funcInput').value.trim();
+      const tMin = parseFloat(document.getElementById('tMin').value);
+      const tMax = parseFloat(document.getElementById('tMax').value);
+      const fMin = parseFloat(document.getElementById('freqMin').value);
+      const fMax = parseFloat(document.getElementById('freqMax').value);
+
+      // --- Compile function ---
+      const compiled = math.compile(funcStr);
+
+      // --- Time array ---
+      t = [];
+      const dt = (tMax - tMin) / (NUM_POINTS - 1);
+      for (let i = 0; i < NUM_POINTS; i++) {
+        t.push(tMin + i * dt);
+      }
+
+      // --- Evaluate signal ---
+      signal = [];
+      for (let i = 0; i < NUM_POINTS; i++) {
+        signal.push(compiled.evaluate({ t: t[i] }));
+      }
+
+      // --- Frequency list ---
+      sfList = [];
+      const fStep = 0.1;
+      const numFreq = Math.floor((fMax - fMin) / fStep) + 1;
+      for (let k = 0; k < numFreq; k++) {
+        sfList.push(fMin + k * fStep);
+      }
+
+      // --- Compute xCord, yCord, meanList ---
+      xCord = [];
+      yCord = [];
+      meanList = [];
+      for (let k = 0; k < sfList.length; k++) {
+        const sf = sfList[k];
+        const twoPiSF = 2 * Math.PI * sf;
+        const xk = new Float64Array(NUM_POINTS);
+        const yk = new Float64Array(NUM_POINTS);
+        let sumX = 0;
+        for (let i = 0; i < NUM_POINTS; i++) {
+          const amp = signal[i];
+          const angle = t[i] * twoPiSF;
+          xk[i] = amp * Math.cos(angle);
+          yk[i] = amp * Math.sin(angle);
+          sumX += xk[i];
+        }
+        xCord.push(xk);
+        yCord.push(yk);
+        meanList.push(sumX);
+      }
+
+      // --- Update UI ---
+      document.getElementById('animFreq').max = sfList.length - 1;
+      document.getElementById('animFrame').max = NUM_POINTS - 1;
+
+      // --- Draw everything ---
+      drawSignal();
+      drawGrid();
+      drawAnim(0, 0);
+      drawCOMPlots();
+
+      loadingEl.style.display = 'none';
+    } catch (err) {
+      loadingEl.style.display = 'none';
+      if (!mathReady) {
+        alert('math.js is still loading. Please wait a moment and try again.');
+      } else {
+        alert('Error: ' + err.message + '\n\nCheck your function syntax. Use "t" as variable.');
+      }
+    }
+  }, 30);
+}
+
+// ============================================================
+//  SECTION 1: Signal Plot
+// ============================================================
+function drawSignal() {
+  const W = ctxSignal.canvas.width;
+  const H = ctxSignal.canvas.height;
+  const pad = { top: 30, right: 30, bottom: 40, left: 50 };
+
+  ctxSignal.clearRect(0, 0, W, H);
+  ctxSignal.fillStyle = '#16213e';
+  ctxSignal.fillRect(0, 0, W, H);
+
+  // Find range
+  let yMin = Infinity, yMax = -Infinity;
+  for (let i = 0; i < signal.length; i++) {
+    if (signal[i] < yMin) yMin = signal[i];
+    if (signal[i] > yMax) yMax = signal[i];
+  }
+  if (!isFinite(yMin)) { yMin = -1; yMax = 1; }
+  const yMargin = (yMax - yMin) * 0.1 || 0.1;
+  yMin -= yMargin;
+  yMax += yMargin;
+
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  function tx(x) { return pad.left + (x - t[0]) / (t[t.length-1] - t[0]) * plotW; }
+  function ty(y) { return pad.top + plotH - (y - yMin) / (yMax - yMin) * plotH; }
+
+  // Grid
+  ctxSignal.strokeStyle = '#2a2a4a';
+  ctxSignal.lineWidth = 0.5;
+  for (let i = 0; i <= 5; i++) {
+    const y = yMin + (yMax - yMin) * i / 5;
+    const py = ty(y);
+    ctxSignal.beginPath();
+    ctxSignal.moveTo(pad.left, py);
+    ctxSignal.lineTo(W - pad.right, py);
+    ctxSignal.stroke();
+  }
+
+  // Axes
+  ctxSignal.strokeStyle = '#888';
+  ctxSignal.lineWidth = 1;
+  ctxSignal.beginPath();
+  ctxSignal.moveTo(pad.left, pad.top);
+  ctxSignal.lineTo(pad.left, H - pad.bottom);
+  ctxSignal.lineTo(W - pad.right, H - pad.bottom);
+  ctxSignal.stroke();
+
+  // Curve
+  ctxSignal.strokeStyle = '#4cc9f0';
+  ctxSignal.lineWidth = 2;
+  ctxSignal.beginPath();
+  let first = true;
+  for (let i = 0; i < t.length; i++) {
+    const sx = tx(t[i]);
+    const sy = ty(signal[i]);
+    if (isFinite(sx) && isFinite(sy)) {
+      if (first) { ctxSignal.moveTo(sx, sy); first = false; }
+      else ctxSignal.lineTo(sx, sy);
+    }
+  }
+  ctxSignal.stroke();
+
+  // Labels
+  ctxSignal.fillStyle = '#e0e0e0';
+  ctxSignal.font = '12px sans-serif';
+  ctxSignal.textAlign = 'center';
+  ctxSignal.fillText('Time (s)', W / 2, H - 5);
+  ctxSignal.save();
+  ctxSignal.translate(12, H / 2);
+  ctxSignal.rotate(-Math.PI / 2);
+  ctxSignal.fillText('Amplitude', 0, 0);
+  ctxSignal.restore();
+
+  // Y ticks
+  ctxSignal.textAlign = 'right';
+  for (let i = 0; i <= 5; i++) {
+    const y = yMin + (yMax - yMin) * i / 5;
+    ctxSignal.fillText(y.toFixed(2), pad.left - 6, ty(y) + 4);
+  }
+  // X ticks
+  ctxSignal.textAlign = 'center';
+  for (let i = 0; i <= 5; i++) {
+    const x = t[0] + (t[t.length-1] - t[0]) * i / 5;
+    ctxSignal.fillText(x.toFixed(1), tx(x), H - pad.bottom + 16);
+  }
+}
+
+// ============================================================
+//  SECTION 2: 100-Subplot Grid
+// ============================================================
+function drawGrid() {
+  const W = ctxGrid.canvas.width;
+  const H = ctxGrid.canvas.height;
+  const cols = 10;
+  const rows = Math.ceil(sfList.length / cols);
+  const cellW = W / cols;
+  const cellH = H / rows;
+
+  ctxGrid.clearRect(0, 0, W, H);
+  ctxGrid.fillStyle = '#16213e';
+  ctxGrid.fillRect(0, 0, W, H);
+
+  // Find global range
+  let gMin = Infinity, gMax = -Infinity;
+  for (let k = 0; k < sfList.length; k++) {
+    for (let i = 0; i < xCord[k].length; i++) {
+      const v = xCord[k][i];
+      if (v < gMin) gMin = v;
+      if (v > gMax) gMax = v;
+      const w = yCord[k][i];
+      if (w < gMin) gMin = w;
+      if (w > gMax) gMax = w;
+    }
+  }
+  if (!isFinite(gMin)) { gMin = -1; gMax = 1; }
+  const margin = (gMax - gMin) * 0.1 || 0.1;
+  gMin -= margin; gMax += margin;
+
+  for (let k = 0; k < sfList.length; k++) {
+    const col = k % cols;
+    const row = Math.floor(k / cols);
+    const cx = col * cellW + cellW / 2;
+    const cy = row * cellH + cellH / 2;
+    const scale = Math.min(cellW, cellH) * 0.38;
+
+    function sx(v) { return cx + (v / (gMax || 1)) * scale; }
+    function sy(v) { return cy - (v / (gMax || 1)) * scale; }
+
+    // Axes
+    ctxGrid.strokeStyle = '#333';
+    ctxGrid.lineWidth = 0.3;
+    ctxGrid.beginPath();
+    ctxGrid.moveTo(cx - scale, cy);
+    ctxGrid.lineTo(cx + scale, cy);
+    ctxGrid.moveTo(cx, cy - scale);
+    ctxGrid.lineTo(cx, cy + scale);
+    ctxGrid.stroke();
+
+    // Curve
+    ctxGrid.strokeStyle = '#4cc9f0';
+    ctxGrid.lineWidth = 0.5;
+    ctxGrid.beginPath();
+    for (let i = 0; i < xCord[k].length; i++) {
+      const px = sx(xCord[k][i]);
+      const py = sy(yCord[k][i]);
+      if (i === 0) ctxGrid.moveTo(px, py);
+      else ctxGrid.lineTo(px, py);
+    }
+    ctxGrid.stroke();
+
+    // COM dot
+    const mx = meanList[k] / xCord[k].length;
+    const my = 0;
+    // compute actual y-mean
+    let sumY = 0;
+    for (let i = 0; i < yCord[k].length; i++) sumY += yCord[k][i];
+    const myReal = sumY / yCord[k].length;
+
+    ctxGrid.fillStyle = '#ff4444';
+    ctxGrid.beginPath();
+    ctxGrid.arc(sx(mx), sy(myReal), 2.5, 0, Math.PI * 2);
+    ctxGrid.fill();
+
+    // Label
+    ctxGrid.fillStyle = '#aaa';
+    ctxGrid.font = '9px sans-serif';
+    ctxGrid.textAlign = 'center';
+    ctxGrid.fillText(sfList[k].toFixed(1) + ' Hz', cx, cy + scale + 12);
+  }
+}
+
+// ============================================================
+//  SECTION 3: Interactive Animation
+// ============================================================
+function drawAnim(freqIdx, frame) {
+  const W = ctxAnim.canvas.width;
+  const H = ctxAnim.canvas.height;
+  const pad = 30;
+
+  ctxAnim.clearRect(0, 0, W, H);
+  ctxAnim.fillStyle = '#16213e';
+  ctxAnim.fillRect(0, 0, W, H);
+
+  if (sfList.length === 0 || xCord.length === 0) return;
+
+  const k = freqIdx;
+  // Dynamic bounds from current frequency's data
+  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+  for (let i = 0; i < xCord[k].length; i++) {
+    if (xCord[k][i] < xMin) xMin = xCord[k][i];
+    if (xCord[k][i] > xMax) xMax = xCord[k][i];
+    if (yCord[k][i] < yMin) yMin = yCord[k][i];
+    if (yCord[k][i] > yMax) yMax = yCord[k][i];
+  }
+  const m = Math.max(xMax - xMin, yMax - yMin, 0.01) * 0.15;
+  xMin -= m; xMax += m; yMin -= m; yMax += m;
+  // Ensure square aspect
+  const range = Math.max(xMax - xMin, yMax - yMin);
+  const cxRange = (xMin + xMax) / 2;
+  const cyRange = (yMin + yMax) / 2;
+  xMin = cxRange - range / 2;
+  xMax = cxRange + range / 2;
+  yMin = cyRange - range / 2;
+  yMax = cyRange + range / 2;
+
+  const plotSize = Math.min(W, H) - pad * 2;
+  function sx(v) { return W/2 + (v - cxRange) / (range / 2) * (plotSize / 2); }
+  function sy(v) { return H/2 - (v - cyRange) / (range / 2) * (plotSize / 2); }
+
+  // Grid
+  ctxAnim.strokeStyle = '#333';
+  ctxAnim.lineWidth = 0.5;
+  ctxAnim.beginPath();
+  ctxAnim.moveTo(W/2, pad); ctxAnim.lineTo(W/2, H - pad);
+  ctxAnim.moveTo(pad, H/2); ctxAnim.lineTo(W - pad, H/2);
+  ctxAnim.stroke();
+
+  // Curve up to current frame
+  if (frame > 0) {
+    ctxAnim.strokeStyle = '#4cc9f0';
+    ctxAnim.lineWidth = 1;
+    ctxAnim.beginPath();
+    for (let i = 0; i <= frame; i++) {
+      const px = sx(xCord[k][i]);
+      const py = sy(yCord[k][i]);
+      if (i === 0) ctxAnim.moveTo(px, py);
+      else ctxAnim.lineTo(px, py);
+    }
+    ctxAnim.stroke();
+
+    // COM dot
+    let sumX = 0, sumY = 0;
+    for (let i = 0; i <= frame; i++) { sumX += xCord[k][i]; sumY += yCord[k][i]; }
+    const cmx = sumX / (frame + 1);
+    const cmy = sumY / (frame + 1);
+    ctxAnim.fillStyle = '#ff4444';
+    ctxAnim.beginPath();
+    ctxAnim.arc(sx(cmx), sy(cmy), 6, 0, Math.PI * 2);
+    ctxAnim.fill();
+  }
+
+  // Title
+  ctxAnim.fillStyle = '#e0e0e0';
+  ctxAnim.font = '14px sans-serif';
+  ctxAnim.textAlign = 'center';
+  ctxAnim.fillText(`Freq = ${sfList[k].toFixed(2)} Hz | Frame ${frame}/${NUM_POINTS-1}`, W/2, H - 10);
+}
+
+function togglePlay() {
+  if (animPlaying) {
+    animPlaying = false;
+    document.getElementById('animPlayBtn').textContent = '▶';
+    if (animTimer) clearInterval(animTimer);
+  } else {
+    animPlaying = true;
+    document.getElementById('animPlayBtn').textContent = '⏸';
+    animStep();
+  }
+}
+
+function animStep() {
+  if (!animPlaying) return;
+  let frame = parseInt(document.getElementById('animFrame').value);
+  const freqIdx = parseInt(document.getElementById('animFreq').value);
+  frame += 10;
+  if (frame >= NUM_POINTS) {
+    frame = 0;
+  }
+  document.getElementById('animFrame').value = frame;
+  updateAnimDisplay();
+  drawAnim(freqIdx, frame);
+  animTimer = setTimeout(animStep, 40);
+}
+
+function updateAnimDisplay() {
+  const freqIdx = parseInt(document.getElementById('animFreq').value);
+  const frame = parseInt(document.getElementById('animFrame').value);
+  document.getElementById('animFreqLabel').textContent =
+    (sfList[freqIdx] || 0).toFixed(1) + ' Hz';
+  document.getElementById('animFrameLabel').textContent =
+    frame + '/' + (NUM_POINTS - 1);
+}
+
+// ============================================================
+//  SECTION 4: COM vs Frequency Plots (3-in-row)
+// ============================================================
+function drawCOMPlots() {
+  if (sfList.length === 0) return;
+
+  // --- Raw line plot ---
+  drawLinePlot(ctxRaw, sfList, meanList, 'Raw COM x-coordinate', 'Frequency (Hz)', 'COM-x');
+
+  // --- Smoothed ---
+  const maxAbs = Math.max(...meanList.map(Math.abs));
+  const threshold = 0.2 * maxAbs;
+  const smoothed = meanList.map(v => (v > 0 && v > threshold) ? v : 0);
+  drawLinePlot(ctxSmooth, sfList, smoothed, 'Smoothed (threshold 20% max)', 'Frequency (Hz)', 'COM-x');
+
+  // --- Bar chart ---
+  drawBarPlot(ctxBar, sfList, smoothed, 'Bar Chart View', 'Frequency (Hz)', 'COM-x');
+}
+
+function drawLinePlot(ctx, xData, yData, title, xLabel, yLabel) {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  const pad = { top: 30, right: 20, bottom: 35, left: 50 };
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(0, 0, W, H);
+
+  let yMin = Infinity, yMax = -Infinity;
+  for (const v of yData) {
+    if (v < yMin) yMin = v;
+    if (v > yMax) yMax = v;
+  }
+  if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
+  const ym = (yMax - yMin) * 0.1 || 0.1;
+  yMin -= ym; yMax += ym;
+
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+  function tx(x) { return pad.left + (x - xData[0]) / (xData[xData.length-1] - xData[0]) * plotW; }
+  function ty(y) { return pad.top + plotH - (y - yMin) / (yMax - yMin) * plotH; }
+
+  // Grid
+  ctx.strokeStyle = '#2a2a4a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = yMin + (yMax - yMin) * i / 4;
+    const py = ty(y);
+    ctx.beginPath(); ctx.moveTo(pad.left, py); ctx.lineTo(W - pad.right, py); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, H - pad.bottom);
+  ctx.lineTo(W - pad.right, H - pad.bottom);
+  ctx.stroke();
+
+  // Curve
+  ctx.strokeStyle = '#4cc9f0';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < xData.length; i++) {
+    const px = tx(xData[i]);
+    const py = ty(yData[i]);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Title
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, W / 2, 14);
+  ctx.fillText(xLabel, W / 2, H - 4);
+  ctx.save();
+  ctx.translate(10, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+}
+
+function drawBarPlot(ctx, xData, yData, title, xLabel, yLabel) {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  const pad = { top: 30, right: 20, bottom: 35, left: 50 };
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(0, 0, W, H);
+
+  let yMin = 0, yMax = -Infinity;
+  for (const v of yData) { if (v > yMax) yMax = v; }
+  if (!isFinite(yMax)) yMax = 1;
+  yMax *= 1.1;
+
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+  const barW = Math.max(1, plotW / xData.length * 0.8);
+  function tx(x) { return pad.left + (x - xData[0]) / (xData[xData.length-1] - xData[0]) * plotW; }
+  function ty(y) { return pad.top + plotH - (y / yMax) * plotH; }
+
+  // Axes
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, H - pad.bottom);
+  ctx.lineTo(W - pad.right, H - pad.bottom);
+  ctx.stroke();
+
+  // Bars
+  ctx.fillStyle = '#f72585';
+  for (let i = 0; i < xData.length; i++) {
+    if (yData[i] > 0) {
+      const bx = tx(xData[i]) - barW / 2;
+      const by = ty(yData[i]);
+      const bh = H - pad.bottom - by;
+      ctx.fillRect(bx, by, barW, bh);
+    }
+  }
+
+  // Title
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, W / 2, 14);
+  ctx.fillText(xLabel, W / 2, H - 4);
+  ctx.save();
+  ctx.translate(10, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+}
+
+// ============================================================
+//  EVENT LISTENERS
+// ============================================================
+document.getElementById('animFreq').addEventListener('input', function() {
+  updateAnimDisplay();
+  drawAnim(parseInt(this.value), parseInt(document.getElementById('animFrame').value));
+});
+document.getElementById('animFrame').addEventListener('input', function() {
+  updateAnimDisplay();
+  drawAnim(parseInt(document.getElementById('animFreq').value), parseInt(this.value));
+});
+
+// Allow Enter key to trigger generate
+document.getElementById('funcInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') generate();
+});
+
+// ============================================================
+//  INIT: wait for math.js, then generate
+// ============================================================
+let mathReady = false;
+
+function onMathReady() {
+  mathReady = true;
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = false;
+  btn.textContent = 'Generate';
+  generate();
+}
+
+// Poll until math.js is available
+function checkMath() {
+  if (typeof math !== 'undefined' && math.compile) {
+    onMathReady();
+  } else {
+    setTimeout(checkMath, 150);
+  }
+}
+
+// Also listen for the script's load event
+document.querySelector('script[src*="mathjs"]').addEventListener('load', function() {
+  if (!mathReady) onMathReady();
+});
+
+// Start checking
+setTimeout(checkMath, 100);
+
+// Show a friendly message if math.js fails entirely (8s timeout)
+setTimeout(function() {
+  if (!mathReady) {
+    document.getElementById('btnGenerate').textContent = 'math.js failed to load — check network';
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').textContent = '⚠️ Failed to load math.js. Please check your internet connection and refresh.';
+  }
+}, 8000);
+</script>
+
+</body>
+</html>
