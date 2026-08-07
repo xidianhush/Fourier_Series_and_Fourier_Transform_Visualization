@@ -395,7 +395,7 @@ function drawGrid() {
     function sy(v) { return cy - (v / (gMax || 1)) * scale; }
 
     // Axes
-    ctxGrid.strokeStyle = '#333';
+    ctxGrid.strokeStyle = '#888';
     ctxGrid.lineWidth = 0.3;
     ctxGrid.beginPath();
     ctxGrid.moveTo(cx - scale, cy);
@@ -476,7 +476,7 @@ function drawAnim(freqIdx, frame) {
   function sy(v) { return H/2 - (v - cyRange) / (range / 2) * (plotSize / 2); }
 
   // Grid
-  ctxAnim.strokeStyle = '#333';
+  ctxAnim.strokeStyle = '#888';
   ctxAnim.lineWidth = 0.5;
   ctxAnim.beginPath();
   ctxAnim.moveTo(W/2, pad); ctxAnim.lineTo(W/2, H - pad);
