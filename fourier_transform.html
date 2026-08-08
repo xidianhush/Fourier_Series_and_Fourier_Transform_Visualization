@@ -622,12 +622,14 @@ function drawAnim(freqIdx, frame) {
   function sx(v) { return W/2 + (v - cxRange) / (range / 2) * (plotSize / 2); }
   function sy(v) { return H/2 - (v - cyRange) / (range / 2) * (plotSize / 2); }
 
-  // Grid
+  // Axes through the data origin (0,0), consistent with Section 2
+  const ox = sx(0);
+  const oy = sy(0);
   ctxAnim.strokeStyle = '#888';
   ctxAnim.lineWidth = 0.5;
   ctxAnim.beginPath();
-  ctxAnim.moveTo(W/2, pad); ctxAnim.lineTo(W/2, H - pad);
-  ctxAnim.moveTo(pad, H/2); ctxAnim.lineTo(W - pad, H/2);
+  ctxAnim.moveTo(ox, pad); ctxAnim.lineTo(ox, H - pad);
+  ctxAnim.moveTo(pad, oy); ctxAnim.lineTo(W - pad, oy);
   ctxAnim.stroke();
 
   // Curve up to current frame
