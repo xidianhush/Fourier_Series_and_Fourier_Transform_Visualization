@@ -28,6 +28,7 @@
   - IPython.display(嵌入 YouTube 视频)
 - **网页版**:纯静态 HTML/CSS/JavaScript,零构建步骤、无包管理器
   - mathjs 12.4.1(CDN 加载:cdnjs,失败时回退到 unpkg)
+  - KaTeX 0.16.9(CDN 加载:cdnjs,失败时回退到 unpkg),用于第 5 节的 LaTeX 公式渲染
   - HTML5 Canvas 绘图
   - 单文件、深色主题、页面语言 zh-CN
 
@@ -60,6 +61,7 @@ Notebook 共 4 个章节:
 - `drawGrid()` — 第 2 节:10 列子图网格,每格画缠绕曲线与质心红点。
 - `drawAnim(freqIdx, frame)` / `togglePlay()` / `animStep()` — 第 3 节:逐帧播放动画(每 40ms 前进 10 帧)。
 - `drawCOMPlots()` / `drawLinePlot()` / `drawBarPlot()` — 第 4 节:三个并排图(原始质心、平滑后、柱状)。
+- 第 5 节为静态 HTML 讲解(英文,标题 "Understanding the Geometric Meaning of Fourier Transform & Spectral Density"),数学公式用 KaTeX auto-render 渲染:页面末尾独立的 `<script>` 在 DOMContentLoaded 时对 `#section5` 调用 `renderMathInElement(...)`,支持内联 `$...$` 与独立 `$$...$$`。
 - `onMathReady()` / `checkMath()` — 轮询等待 mathjs 就绪后自动 `generate()`;8 秒超时在页面上提示 math.js 加载失败。
 - 事件监听:频率/帧滑块 `input` 事件、输入框回车触发 `generate()`。
 

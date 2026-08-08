@@ -6,6 +6,12 @@
 <title>Fourier Transform - A Visual Introduction</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.1/math.min.js"
   onerror="this.onerror=null;this.src='https://unpkg.com/mathjs@12.4.1/lib/browser/math.js'"></script>
+<!-- KaTeX: render LaTeX in the explanation section -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/katex@0.16.9/dist/katex.min.js';"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/katex@0.16.9/dist/contrib/auto-render.min.js';"></script>
 <style>
   :root {
     --bg: #1a1a2e;
@@ -23,6 +29,8 @@
   }
   h1 { font-size: 1.8rem; text-align: center; margin: 20px 0 10px; color: var(--accent); }
   h2 { font-size: 1.3rem; color: var(--accent2); margin: 30px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 1.05rem; color: var(--accent); margin: 18px 0 8px; }
+  h4 { font-size: 0.95rem; color: var(--text); margin: 14px 0 6px; }
   p, li { margin: 6px 0; }
   .video-wrap { text-align: center; margin: 20px 0; }
   iframe { max-width: 100%; border-radius: 8px; }
@@ -154,6 +162,145 @@ The <span style="color:#ff4444;">red dot</span> marks the center of mass.</p>
     <canvas id="canvasCOMSmooth" width="500" height="300"></canvas>
     <canvas id="canvasCOMBar" width="500" height="300"></canvas>
   </div>
+</div>
+
+<!-- ========== SECTION 5: Geometric Meaning ========== -->
+<h2>5. Understanding the Geometric Meaning of Fourier Transform &amp; Spectral Density</h2>
+<div class="canvas-box" id="section5">
+  <p>
+    Understanding the Fourier transform from the physical perspective of the
+    <strong>center of mass</strong> and of the signal
+    <strong>superposed in a rotating polar coordinate system</strong> is essentially
+    constructing a method that brings out the differences among the different
+    frequency components of a signal.
+  </p>
+
+  <p>
+    Displayed on the complex plane, the geometric meaning of the Fourier transform
+    intuitively reveals how the frequency components of a signal differ. The
+    difference revealed here is the difference in <em>spectral density</em>
+    $F(j\omega)$ (the spectral density will be covered in full later). $F(j\omega)$
+    may be a complex number:
+  </p>
+  <ul>
+    <li>its <strong>magnitude</strong> carries the amplitude of the frequency component (note the unit: <strong>V/Hz</strong>);</li>
+    <li>its <strong>phase angle</strong> represents the phase of that frequency component.</li>
+  </ul>
+
+  <p>Next, let's see how the Fourier transform is constructed.</p>
+
+  <p>First, recall the definition of the <em>definite integral</em> — essentially, a limit of a sum.</p>
+
+  <h4>Sampling the signal</h4>
+  <p>
+    Over the time interval $0 \to T$, sample the signal every $\Delta t$, obtaining
+    $N$ sample points $t_1, t_2, \dots, t_N$; each sample point corresponds to a
+    sampled value $f(t_k)$.
+  </p>
+
+  <h4>The physical center-of-mass viewpoint</h4>
+  <p>
+    Assume the total mass of the curve is $1$. Divide the curve into $N$ small
+    segments, each of length $\Delta t$:
+  </p>
+  $$ \sum_{k=1}^{N} \frac{1}{N} f\left(t_{k}\right) e^{-j 2 \pi f t_{k}} $$
+
+  <p>
+    How are the $N$ tiny segments of the curve chosen? At every step of $\Delta t$,
+    the curve has wound to some position in the polar coordinate system — take the
+    coordinates and the mass $1/N$ at that position to compute the center of mass.
+    Do this for all $N$ steps of $\Delta t$.
+  </p>
+
+  <p>And we have the relations:</p>
+  $$
+  \begin{aligned}
+  N \cdot \Delta t & = T \\
+  \frac{\Delta t}{T} & = \frac{1}{N}
+  \end{aligned}
+  $$
+
+  <p>Hence we also have:</p>
+  $$
+  \begin{aligned}
+  & \sum_{k=1}^{N} \frac{\Delta t}{T} f\left(t_{k}\right) e^{-j 2 \pi f t_{k}} \\
+  = & \sum_{k=1}^{N} \frac{\Delta t}{T} f\left(\frac{k \Delta t}{T}\right) e^{-j 2 \pi f \frac{k \Delta t}{T}} \\
+  = & \frac{1}{T} \sum_{k=1}^{N} f\left(\frac{k \Delta t}{T}\right) e^{-j 2 \pi f \frac{k \Delta t}{T}} \Delta t
+  \end{aligned}
+  $$
+
+  <h4>Taking the limit — a Riemann sum</h4>
+  <p>
+    Here, suppose the function $f(t)$ is bounded on $[0,T]$. Divide the interval
+    $[0,T]$ into $n$ sub-intervals
+    $[t_0,t_1],\ [t_1,t_2],\ \dots,\ [t_{n-1},t_n]$, where the sub-intervals all have
+    the same length $\Delta t = t_1 - t_0,\ \Delta t = t_2 - t_1,\ \dots,\ \Delta t = t_n - t_{n-1}$.
+    On each sub-interval $[t_{k-1},t_k]$ pick an arbitrary point $\xi_{k}$; here we take
+    $\xi_{k} = \dfrac{k \Delta t}{T}$.
+  </p>
+  <p>
+    Form the product of the function value $f(\xi_k)$ and the sub-interval length
+    $\Delta t$: $f(\xi_k)\,\Delta t\ (k=1,2,\dots,N)$, and form the sum:
+  </p>
+  $$ \sum_{k=1}^{N} f\left(\frac{k \Delta t}{T}\right) e^{-j 2 \pi f \frac{k \Delta t}{T}} \Delta t $$
+
+  <p>
+    If the limit of this sum always exists as $\Delta t \to 0$, then multiplying back
+    by the factor $T$ gives:
+  </p>
+  $$
+  \lim_{\Delta t \to 0} \frac{1}{T} \sum_{k=1}^{N} f\left(\frac{k \Delta t}{T}\right) e^{-j 2 \pi f \frac{k \Delta t}{T}} \Delta t
+  \longrightarrow \frac{1}{T} \int_{0}^{T} f(t) e^{-j 2 \pi f t} \mathrm{d}t
+  $$
+
+  <h4>Periodic vs. non-periodic signals</h4>
+  <ul>
+    <li>
+      If the signal under study is <strong>periodic</strong>: as $T \to \infty$, the
+      center of mass of this periodic signal has a <strong>finite</strong> coordinate amplitude.
+    </li>
+    <li>
+      If the signal under study is <strong>non-periodic</strong>: as $T \to \infty$, the
+      center of mass wanders very close to the origin — its coordinate amplitude becomes
+      <strong>infinitesimal</strong>.
+    </li>
+  </ul>
+  <p>
+    This is exactly the point at which we need to introduce the spectral density and the
+    true Fourier transform.
+  </p>
+
+  <h4>The true Fourier transform — scaling up the center of mass</h4>
+  <p>
+    The true Fourier transform <em>scales up</em> the center of mass: the longer the
+    integration interval $[0,T]$, the larger the scaled center of mass, until the
+    interval becomes $[0,\infty)$ and even $(-\infty,\infty)$. Multiplying by $T$
+    scales up the center-of-mass coordinates (dimensionally, this corresponds exactly
+    to the spectral density, V/Hz).
+  </p>
+  <p>This gives the true Fourier transform:</p>
+  $$
+  F(j\omega) \stackrel{\mathrm{def}}{=} \int_{-\infty}^{\infty} f(t) e^{-j 2 \pi f t} \mathrm{d}t
+  $$
+
+  <p>
+    The coordinates of the center of mass on the complex plane correspond to the
+    spectral density:
+  </p>
+  <ul>
+    <li>
+      its <strong>magnitude</strong> $|F(j\omega)|$ — the amplitude of the frequency
+      component (note the unit: V/Hz);
+    </li>
+    <li>
+      its <strong>phase angle</strong> $\angle F(j\omega)$ — the phase of the frequency component.
+    </li>
+  </ul>
+
+  <p>A figure makes this easier to understand:</p>
+  <img src="b0ef0ca70073a40eba9fcd213d1a1b5b.jpg"
+    alt="Geometric meaning of the Fourier transform"
+    style="max-width:100%;border-radius:8px;margin-top:10px;">
 </div>
 
 <script>
@@ -742,6 +889,23 @@ setTimeout(function() {
     document.getElementById('loading').textContent = '⚠️ Failed to load math.js. Please check your internet connection and refresh.';
   }
 }, 8000);
+</script>
+
+<script>
+// Render LaTeX in Section 5 with KaTeX
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof renderMathInElement === 'function') {
+    renderMathInElement(document.getElementById('section5'), {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false},
+        {left: '\\(', right: '\\)', display: false},
+        {left: '\\[', right: '\\]', display: true}
+      ],
+      throwOnError: false
+    });
+  }
+});
 </script>
 
 </body>
