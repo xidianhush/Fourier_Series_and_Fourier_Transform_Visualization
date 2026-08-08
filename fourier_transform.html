@@ -315,6 +315,29 @@ let xCord = [];   // [freqIdx][timeIdx]
 let yCord = [];   // [freqIdx][timeIdx]
 let meanList = []; // [freqIdx]
 
+let gRange = { min: -1, max: 1 }; // global winding range, shared by Sections 2 & 3
+
+// Compute one global range over all frequencies, so every winding plot
+// (grid cells AND the animation) uses identical scaling and origin.
+function computeGlobalRange() {
+  let mn = Infinity, mx = -Infinity;
+  for (let k = 0; k < sfList.length; k++) {
+    const xk = xCord[k];
+    const yk = yCord[k];
+    for (let i = 0; i < xk.length; i++) {
+      const x = xk[i];
+      if (x < mn) mn = x;
+      if (x > mx) mx = x;
+      const y = yk[i];
+      if (y < mn) mn = y;
+      if (y > mx) mx = y;
+    }
+  }
+  if (!isFinite(mn)) { mn = -1; mx = 1; }
+  const margin = (mx - mn) * 0.1 || 0.1;
+  gRange = { min: mn - margin, max: mx + margin };
+}
+
 let animPlaying = false;
 let animTimer = null;
 
@@ -387,6 +410,9 @@ function generate() {
         yCord.push(yk);
         meanList.push(sumX);
       }
+
+      // --- Compute global winding range (shared by Sections 2 and 3) ---
+      computeGlobalRange();
 
       // --- Update UI ---
       document.getElementById('animFreq').max = sfList.length - 1;
@@ -503,6 +529,58 @@ function drawSignal() {
 // ============================================================
 //  SECTION 2: 100-Subplot Grid
 // ============================================================
+function drawWindingCell(ctx, k, numPoints, rect, opts) {
+  // Draw one winding plot — the SAME rendering used by Section 2 grid cells
+  // and Section 3 animation frames: axes cross at the data origin (0,0),
+  // scaled by the shared global range so every frequency looks identical.
+  //   numPoints : how many time samples to draw (full curve if >= length)
+  //   rect      : { x, y, w, h } drawing area on the canvas
+  //   opts      : { curveWidth, axisWidth, comRadius }
+  const o = opts || {};
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const scale = Math.min(rect.w, rect.h) * 0.38;
+  const r = (gRange.max || 1);
+
+  function sx(v) { return cx + (v / r) * scale; }
+  function sy(v) { return cy - (v / r) * scale; }
+
+  ctx.clearRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+  // Axes through the origin (0,0)
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = o.axisWidth || 0.3;
+  ctx.beginPath();
+  ctx.moveTo(cx - scale, cy); ctx.lineTo(cx + scale, cy);
+  ctx.moveTo(cx, cy - scale); ctx.lineTo(cx, cy + scale);
+  ctx.stroke();
+
+  // Curve
+  const n = Math.max(1, Math.min(numPoints, xCord[k].length));
+  ctx.strokeStyle = '#4cc9f0';
+  ctx.lineWidth = o.curveWidth || 0.5;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const px = sx(xCord[k][i]);
+    const py = sy(yCord[k][i]);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Center of mass over the drawn points
+  let sumX = 0, sumY = 0;
+  for (let i = 0; i < n; i++) { sumX += xCord[k][i]; sumY += yCord[k][i]; }
+  const cmx = sumX / n;
+  const cmy = sumY / n;
+  ctx.fillStyle = '#ff4444';
+  ctx.beginPath();
+  ctx.arc(sx(cmx), sy(cmy), o.comRadius || 2.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawGrid() {
   const W = ctxGrid.canvas.width;
   const H = ctxGrid.canvas.height;
@@ -511,72 +589,16 @@ function drawGrid() {
   const cellW = W / cols;
   const cellH = H / rows;
 
-  ctxGrid.clearRect(0, 0, W, H);
-  ctxGrid.fillStyle = '#16213e';
-  ctxGrid.fillRect(0, 0, W, H);
-
-  // Find global range
-  let gMin = Infinity, gMax = -Infinity;
-  for (let k = 0; k < sfList.length; k++) {
-    for (let i = 0; i < xCord[k].length; i++) {
-      const v = xCord[k][i];
-      if (v < gMin) gMin = v;
-      if (v > gMax) gMax = v;
-      const w = yCord[k][i];
-      if (w < gMin) gMin = w;
-      if (w > gMax) gMax = w;
-    }
-  }
-  if (!isFinite(gMin)) { gMin = -1; gMax = 1; }
-  const margin = (gMax - gMin) * 0.1 || 0.1;
-  gMin -= margin; gMax += margin;
-
   for (let k = 0; k < sfList.length; k++) {
     const col = k % cols;
     const row = Math.floor(k / cols);
-    const cx = col * cellW + cellW / 2;
-    const cy = row * cellH + cellH / 2;
-    const scale = Math.min(cellW, cellH) * 0.38;
-
-    function sx(v) { return cx + (v / (gMax || 1)) * scale; }
-    function sy(v) { return cy - (v / (gMax || 1)) * scale; }
-
-    // Axes
-    ctxGrid.strokeStyle = '#888';
-    ctxGrid.lineWidth = 0.3;
-    ctxGrid.beginPath();
-    ctxGrid.moveTo(cx - scale, cy);
-    ctxGrid.lineTo(cx + scale, cy);
-    ctxGrid.moveTo(cx, cy - scale);
-    ctxGrid.lineTo(cx, cy + scale);
-    ctxGrid.stroke();
-
-    // Curve
-    ctxGrid.strokeStyle = '#4cc9f0';
-    ctxGrid.lineWidth = 0.5;
-    ctxGrid.beginPath();
-    for (let i = 0; i < xCord[k].length; i++) {
-      const px = sx(xCord[k][i]);
-      const py = sy(yCord[k][i]);
-      if (i === 0) ctxGrid.moveTo(px, py);
-      else ctxGrid.lineTo(px, py);
-    }
-    ctxGrid.stroke();
-
-    // COM dot
-    const mx = meanList[k] / xCord[k].length;
-    const my = 0;
-    // compute actual y-mean
-    let sumY = 0;
-    for (let i = 0; i < yCord[k].length; i++) sumY += yCord[k][i];
-    const myReal = sumY / yCord[k].length;
-
-    ctxGrid.fillStyle = '#ff4444';
-    ctxGrid.beginPath();
-    ctxGrid.arc(sx(mx), sy(myReal), 2.5, 0, Math.PI * 2);
-    ctxGrid.fill();
+    const rect = { x: col * cellW, y: row * cellH, w: cellW, h: cellH };
+    drawWindingCell(ctxGrid, k, xCord[k].length, rect);
 
     // Label
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+    const scale = Math.min(cellW, cellH) * 0.38;
     ctxGrid.fillStyle = '#aaa';
     ctxGrid.font = '9px sans-serif';
     ctxGrid.textAlign = 'center';
@@ -590,71 +612,14 @@ function drawGrid() {
 function drawAnim(freqIdx, frame) {
   const W = ctxAnim.canvas.width;
   const H = ctxAnim.canvas.height;
-  const pad = 30;
-
-  ctxAnim.clearRect(0, 0, W, H);
-  ctxAnim.fillStyle = '#16213e';
-  ctxAnim.fillRect(0, 0, W, H);
 
   if (sfList.length === 0 || xCord.length === 0) return;
 
   const k = freqIdx;
-  // Dynamic bounds from current frequency's data
-  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
-  for (let i = 0; i < xCord[k].length; i++) {
-    if (xCord[k][i] < xMin) xMin = xCord[k][i];
-    if (xCord[k][i] > xMax) xMax = xCord[k][i];
-    if (yCord[k][i] < yMin) yMin = yCord[k][i];
-    if (yCord[k][i] > yMax) yMax = yCord[k][i];
-  }
-  const m = Math.max(xMax - xMin, yMax - yMin, 0.01) * 0.15;
-  xMin -= m; xMax += m; yMin -= m; yMax += m;
-  // Ensure square aspect
-  const range = Math.max(xMax - xMin, yMax - yMin);
-  const cxRange = (xMin + xMax) / 2;
-  const cyRange = (yMin + yMax) / 2;
-  xMin = cxRange - range / 2;
-  xMax = cxRange + range / 2;
-  yMin = cyRange - range / 2;
-  yMax = cyRange + range / 2;
-
-  const plotSize = Math.min(W, H) - pad * 2;
-  function sx(v) { return W/2 + (v - cxRange) / (range / 2) * (plotSize / 2); }
-  function sy(v) { return H/2 - (v - cyRange) / (range / 2) * (plotSize / 2); }
-
-  // Axes through the data origin (0,0), consistent with Section 2
-  const ox = sx(0);
-  const oy = sy(0);
-  ctxAnim.strokeStyle = '#888';
-  ctxAnim.lineWidth = 0.5;
-  ctxAnim.beginPath();
-  ctxAnim.moveTo(ox, pad); ctxAnim.lineTo(ox, H - pad);
-  ctxAnim.moveTo(pad, oy); ctxAnim.lineTo(W - pad, oy);
-  ctxAnim.stroke();
-
-  // Curve up to current frame
-  if (frame > 0) {
-    ctxAnim.strokeStyle = '#4cc9f0';
-    ctxAnim.lineWidth = 1;
-    ctxAnim.beginPath();
-    for (let i = 0; i <= frame; i++) {
-      const px = sx(xCord[k][i]);
-      const py = sy(yCord[k][i]);
-      if (i === 0) ctxAnim.moveTo(px, py);
-      else ctxAnim.lineTo(px, py);
-    }
-    ctxAnim.stroke();
-
-    // COM dot
-    let sumX = 0, sumY = 0;
-    for (let i = 0; i <= frame; i++) { sumX += xCord[k][i]; sumY += yCord[k][i]; }
-    const cmx = sumX / (frame + 1);
-    const cmy = sumY / (frame + 1);
-    ctxAnim.fillStyle = '#ff4444';
-    ctxAnim.beginPath();
-    ctxAnim.arc(sx(cmx), sy(cmy), 6, 0, Math.PI * 2);
-    ctxAnim.fill();
-  }
+  // Same rendering as the Section 2 grid cell for this frequency:
+  // shared global range, axes through the origin, curve up to the current frame.
+  drawWindingCell(ctxAnim, k, frame + 1, { x: 0, y: 0, w: W, h: H },
+    { curveWidth: 1, axisWidth: 0.5, comRadius: 6 });
 
   // Title
   ctxAnim.fillStyle = '#e0e0e0';

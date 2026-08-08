@@ -59,6 +59,7 @@ Notebook 共 4 个章节:
 - `generate()` — 读取输入参数,用 mathjs `math.compile(funcStr)` 编译用户函数,生成时间序列与信号,计算 xCord/yCord/meanList,最后统一调用各绘图函数;计算放在 `setTimeout(..., 30)` 里以便先渲染 loading 提示。
 - `drawSignal()` — 第 1 节:信号曲线。
 - `drawGrid()` — 第 2 节:10 列子图网格,每格画缠绕曲线与质心红点。
+- `computeGlobalRange()` / `drawWindingCell(ctx, k, numPoints, rect, opts)` — 第 2、3 节共用的缠绕绘图:先对所有频率计算统一的全局范围 `gRange`,再按该范围绘制单个缠绕图(坐标轴穿过数据原点 (0,0));`drawGrid` 逐格调用、`drawAnim` 每帧调用(传 `frame+1` 只画到当前帧)。
 - `drawAnim(freqIdx, frame)` / `togglePlay()` / `animStep()` — 第 3 节:逐帧播放动画(每 40ms 前进 10 帧)。
 - `drawCOMPlots()` / `drawLinePlot()` / `drawBarPlot()` — 第 4 节:三个并排图(原始质心、平滑后、柱状)。
 - 第 5 节为静态 HTML 讲解(英文,标题 "Understanding the Geometric Meaning of Fourier Transform & Spectral Density"),数学公式用 KaTeX auto-render 渲染:页面末尾独立的 `<script>` 在 DOMContentLoaded 时对 `#section5` 调用 `renderMathInElement(...)`,支持内联 `$...$` 与独立 `$$...$$`。
